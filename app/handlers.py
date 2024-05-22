@@ -3,27 +3,21 @@
 from aiogram import F, Router
 from aiogram.types import Message, ReplyKeyboardRemove
 from aiogram.filters import CommandStart, Command
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app.database.models import Project
 import app.text as t
-from app import kb
-
+import app.kb as kb
+import app.database.requests as rq
 
 router = Router()
-
-
-class Reg(StatesGroup):
-    """State for checking registration"""
-
-    id = State()
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     """Command /start"""
+    await rq.set_user(message.from_user.id)
+    await rq.add_project(message.from_user.id, "General")
     await message.reply(t.GREETING, reply_markup=kb.start_kb, parse_mode="Markdown")
-    # TODO: write new user into the DB
 
 
 @router.message(Command("help"))
@@ -40,9 +34,8 @@ async def cmd_luck(message: Message):
 
 @router.message(F.text == "📝Новая задача")
 async def new_task(message: Message):
-    """Creatie a new task"""
+    """Create a new task"""
     await message.answer("Введите название задачи", reply_markup=ReplyKeyboardRemove())
-    # TODO: write new task into the DB
 
 
 @router.message(F.text == "📚Новый проект")
@@ -55,13 +48,22 @@ async def new_project(message: Message):
 @router.message(F.text == "✅Список общих задач")
 async def list_tasks(message: Message):
     """List all tasks"""
-    # TODO: list all tasks
+    projects = await rq.get_projects(message.from_user.id)
+    for project in projects:
+        if project.name == "General":
+            needed_id = project.id
+    await message.answer(
+        "Список общих задач",
+        reply_markup=await kb.project_tasks(needed_id, message.from_user.id),
+    )
 
 
 @router.message(F.text == "☑️Список проектов")
 async def list_projects(message: Message):
     """List all projects"""
-    # TODO: list all projects
+    await message.answer(
+        "Список проектов", reply_markup=await kb.projects(message.from_user.id)
+    )
 
 
 @router.message(F.text == "🔙Назад")

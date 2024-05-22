@@ -1,11 +1,11 @@
 """This file contains all database requests for the bot"""
 
-from models import User, Project, Task, async_session
+from app.database.models import User, Project, Task, async_session
 
 from sqlalchemy import BigInteger, select, update, delete
 
 
-async def set_user(tg_id: int) -> None:
+async def set_user(tg_id: int):
     """
     Asynchronously sets a user in the database.
 
@@ -58,3 +58,33 @@ async def add_task(project_id: int, name: str, user_id: BigInteger) -> None:
         if not task:
             session.add(Task(name=name, project_id=project_id, user_id=user_id))
             await session.commit()
+
+
+async def get_projects(user_id):
+    """
+    Asynchronously retrieves all projects associated with the given user ID.
+
+    :param user_id: The ID of the user for whom to retrieve the projects.
+    :type user_id: int
+    :return: A list of Project objects associated with the user ID.
+    :rtype: List[Project]
+    """
+    async with async_session() as session:
+        return await session.scalars(select(Project).where(Project.user_id == user_id))
+
+
+async def get_project_tasks(project_id, user_id):
+    """
+    Asynchronously retrieves all tasks associated with the given project ID and user ID.
+
+    :param project_id: The ID of the project for which to retrieve the tasks.
+    :type project_id: int
+    :param user_id: The ID of the user for whom to retrieve the tasks.
+    :type user_id: int
+    :return: A list of Task objects associated with the project ID and user ID.
+    :rtype: List[Task]
+    """
+    async with async_session() as session:
+        return await session.scalars(
+            select(Task).where(Task.project_id == project_id, Task.user_id == user_id)
+        )
