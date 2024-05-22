@@ -1,2 +1,6 @@
 .env
 /.venv
+.pylintrc
+/.vscode
+__pychache__
+/app/__pychache__
