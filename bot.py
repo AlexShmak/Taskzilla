@@ -6,10 +6,12 @@ import asyncio
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from app.handlers import router
+from app.database.models import async_main
 
 
 async def main():
     """Entry point of the bot"""
+    await async_main()
     load_dotenv()
     bot = Bot(token=str(os.getenv("BOT_TOKEN")))
     dp = Dispatcher()

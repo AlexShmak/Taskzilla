@@ -2,5 +2,7 @@
 /.venv
 .pylintrc
 /.vscode
-/__pychache__
-/app/__pychache__/
+/__pycache__
+/app/database/__pycache__
+/app/__pycache__
+/app/database/db.sqlite3

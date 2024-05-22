@@ -23,6 +23,7 @@ class Reg(StatesGroup):
 async def cmd_start(message: Message):
     """Command /start"""
     await message.reply(t.GREETING, reply_markup=kb.start_kb, parse_mode="Markdown")
+    # TODO: write new user into the DB
 
 
 @router.message(Command("help"))
