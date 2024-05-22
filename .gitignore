@@ -2,5 +2,5 @@
 /.venv
 .pylintrc
 /.vscode
-__pychache__
-/app/__pychache__
+/__pychache__
+/app/__pychache__/
