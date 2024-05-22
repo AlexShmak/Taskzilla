@@ -1,26 +1,29 @@
 from aiogram import F, Router
 from aiogram.types import Message
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+
+import app.text as t
 
 
 router = Router()
 
 
-class Generate(StatesGroup):
-    text = State()
+class Reg(StatesGroup):
+    id = State()
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
-    await message.answer("я могу упорядочить твою гребаную жизнь")
-    await state.clear()
+    await message.reply(t.greeting)
 
 
-@router.message(F.text)
-async def generate(message: Message, state: FSMContext):
-    await state.set_state(Generate.text)
-    # response = await
-    # await message.answer(response.choices[0].message.content)
-    await state.clear()
+@router.message(Command("help"))
+async def cmd_help(message: Message):
+    await message.reply(t.help)
+
+
+@router.message(Command("luck"))
+async def cmd_luck(message: Message):
+    await message.answer_dice(emoji="🎰")

@@ -12,7 +12,7 @@ logging.basicConfig(
 
 async def main():
     load_dotenv()
-    bot = Bot(os.getenv("BOT_TOKEN"))
+    bot = Bot(os.getenv("BOT_TOKEN"), parse_mode="Markdown")
     dp = Dispatcher()
     dp.include_router(router)
     await dp.start_polling(bot)
