@@ -1,8 +1,10 @@
 """This file contains all database models for the bot"""
 
-from sqlalchemy import BigInteger, String, ForeignKey
+from enum import Enum
+
+from sqlalchemy import BigInteger, ForeignKey, String
+from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncAttrs, async_sessionmaker
 
 engine = create_async_engine(
     url="sqlite+aiosqlite:///app/database/db.sqlite3", echo=True
@@ -51,6 +53,21 @@ class Project(Base):
     user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.tg_id"))
 
 
+class TaskState(Enum):
+    """
+    Represents the state of a task.
+
+    Attributes:
+        NOT_STARTED (int): The task has not been started.
+        IN_PROGRESS (int): The task is in progress.
+        COMPLETED (int): The task has been completed.
+    """
+
+    NOT_STARTED = 0
+    IN_PROGRESS = 1
+    COMPLETED = 2
+
+
 class Task(Base):
     """
     Represents a task in the database.
@@ -68,6 +85,7 @@ class Task(Base):
     name: Mapped[str] = mapped_column(String(256))
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.tg_id"))
+    task_state: Mapped[TaskState] = mapped_column(default=TaskState.NOT_STARTED)
 
 
 async def async_main():

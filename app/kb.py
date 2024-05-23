@@ -1,50 +1,107 @@
 """This file contains all keyboars for the bot"""
 
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.database.requests import get_projects, get_project_tasks
 
-# General keyboards
-start_kb = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="📝Новая задача"), KeyboardButton(text="📚Новый проект")],
-        [KeyboardButton(text="✅Список общих задач")],
-        [KeyboardButton(text="☑️Список проектов")],
+# General keyboard
+start_kb = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📝Новая задача", callback_data="new_task"),
+            InlineKeyboardButton(text="📚Новый проект", callback_data="new_project"),
+        ],
+        [
+            InlineKeyboardButton(
+                text="✅Список общих задач", callback_data="list_general_tasks"
+            )
+        ],
+        [InlineKeyboardButton(text="☑️Список проектов", callback_data="list_projects")],
     ],
     resize_keyboard=True,
     input_field_placeholder="Выберите действие...",
 )
 
 
-change_kb = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="📝Переименовать"), KeyboardButton(text="❌Удалить")],
-        [KeyboardButton(text="🔙Назад")],
-    ]
+async def change_task_kb(project_id):
+    change_task_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📝Переименовать задачу",
+                    callback_data=f"rename_task_{project_id}",
+                ),
+                InlineKeyboardButton(
+                    text="❌Удалить", callback_data=f"delete_task_{project_id}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔙Назад", callback_data=f"list_tasks_{project_id}"
+                )
+            ],
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Выберите действие...",
+    )
+    return change_task_kb
+
+
+change_project_kb = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="📝Переименовать проект", callback_data="rename_project"
+            ),
+            InlineKeyboardButton(text="❌Удалить", callback_data="delete_project"),
+        ],
+        [InlineKeyboardButton(text="🔙Назад", callback_data="project")],
+    ],
+    resize_keyboard=True,
+    input_field_placeholder="Выберите действие...",
 )
 
-
 # Keyboards to interact with tasks
-task_kb = ReplyKeyboardMarkup(
-    keyboard=[
+task_kb = InlineKeyboardMarkup(
+    inline_keyboard=[
         [
-            KeyboardButton(text="🟣Не начата"),
-            KeyboardButton(text="🔵В процессе"),
-            KeyboardButton(text="🟢Завершена"),
+            InlineKeyboardButton(text="🟣Не начата", callback_data="not_started"),
+            InlineKeyboardButton(text="🔵В процессе", callback_data="in_progress"),
+            InlineKeyboardButton(text="🟢Завершена", callback_data="completed"),
         ],
-        [KeyboardButton(text="✏️Изменить задачу")],
-    ]
+        [InlineKeyboardButton(text="✏️Изменить задачу", callback_data="change_task")],
+        [InlineKeyboardButton(text="🔙Назад", callback_data="back")],
+    ],
+    resize_keyboard=True,
+    input_field_placeholder="Выберите действие...",
 )
 
 
 # Keyboards to interact with projects
-project_kb = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="✏️Изменить проект")],
-        [KeyboardButton(text="📃Перейти к списку задач")],
-    ]
-)
+async def manage_project(project_id):
+    project_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✏️Изменить проект", callback_data="change_project"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📃Перейти к списку задач",
+                    callback_data=f"list_tasks_{project_id}",
+                )
+            ],
+            [InlineKeyboardButton(text="🔙Назад", callback_data="list_projects")],
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Выберите действие...",
+    )
+    return project_kb
 
 
 async def projects(user_id):
@@ -63,7 +120,7 @@ async def projects(user_id):
     for project in all_projects:
         keyboard.add(
             InlineKeyboardButton(
-                text=project.name, callback_data=f"project{user_id}_{project.id}"
+                text=project.name, callback_data=f"project_{user_id}_{project.id}"
             )
         )
     keyboard.add(InlineKeyboardButton(text="🔙Назад", callback_data="to_start_kb"))
@@ -90,5 +147,47 @@ async def project_tasks(project_id, user_id):
                 text=task.name, callback_data=f"task_{user_id}_{project_id}_{task.id}"
             )
         )
-    keyboard.add(InlineKeyboardButton(text="🔙Назад", callback_data="to_start_kb"))
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🔙Назад", callback_data=f"project_{user_id}_{project_id}"
+        )
+    )
     return keyboard.adjust(1).as_markup()
+
+
+async def general_tasks(project_id, user_id):
+    """
+    Asynchronously retrieves the project tasks for the given project ID and user ID,
+    modifies the callback data of the "🔙Назад" button to "to_start_kb",
+    and returns the modified keyboard markup.
+
+    :param project_id: The ID of the project for which to retrieve the tasks.
+    :type project_id: int
+    :param user_id: The ID of the user for whom to retrieve the tasks.
+    :type user_id: int
+    :return: An inline keyboard markup with the modified callback data.
+    :rtype: InlineKeyboardMarkup
+    """
+    keyboard = await project_tasks(project_id, user_id)
+
+    # Create a new list to store the modified rows
+    new_inline_keyboard = []
+
+    for row in keyboard.inline_keyboard:
+        new_row = []
+        for button in row:
+            # Check if this is the "🔙Назад" button
+            if button.callback_data == f"project_{user_id}_{project_id}":
+                # Replace the callback_data with "to_start_kb"
+                new_button = InlineKeyboardButton(
+                    text=button.text, callback_data="to_start_kb"
+                )
+                new_row.append(new_button)
+            else:
+                # Otherwise, keep the button unchanged
+                new_row.append(button)
+        new_inline_keyboard.append(new_row)
+
+    # Create a new InlineKeyboardMarkup with the modified buttons
+    new_keyboard = InlineKeyboardMarkup(inline_keyboard=new_inline_keyboard)
+    return new_keyboard

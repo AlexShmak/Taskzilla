@@ -5,7 +5,7 @@ from app.database.models import User, Project, Task, async_session
 from sqlalchemy import BigInteger, select, update, delete
 
 
-async def set_user(tg_id: int):
+async def add_user(tg_id: int):
     """
     Asynchronously sets a user in the database.
 
@@ -88,3 +88,23 @@ async def get_project_tasks(project_id, user_id):
         return await session.scalars(
             select(Task).where(Task.project_id == project_id, Task.user_id == user_id)
         )
+
+
+async def get_project_name(project_id, user_id):
+    """
+    Asynchronously retrieves the name of a project
+        based on its ID and the ID of the user who owns it.
+
+    :param project_id: The ID of the project to retrieve the name for.
+    :type project_id: int
+    :param user_id: The ID of the user who owns the project.
+    :type user_id: int
+    :return: The name of the project if it exists, None otherwise.
+    :rtype: str or None
+    """
+    async with async_session() as session:
+        project = await session.scalar(
+            select(Project).where(Project.id == project_id, Project.user_id == user_id)
+        )
+
+        return project.name
