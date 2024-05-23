@@ -47,8 +47,6 @@ async def starting_kb(user_id):
                 )
             ],
         ],
-        resize_keyboard=True,
-        input_field_placeholder="Выберите действие...",
     )
     return start_kb
 
@@ -81,8 +79,7 @@ async def change_task_kb(project_id):
                 )
             ],
         ],
-        resize_keyboard=True,
-        input_field_placeholder="Выберите действие...",
+        resize_keyboard=False,
     )
     return change_t_kb
 
@@ -97,8 +94,6 @@ change_project_kb = InlineKeyboardMarkup(
         ],
         [InlineKeyboardButton(text="🔙Назад", callback_data="project")],
     ],
-    resize_keyboard=True,
-    input_field_placeholder="Выберите действие...",
 )
 
 
@@ -141,8 +136,6 @@ async def manage_task(project_id, task_id):
                 )
             ],
         ],
-        resize_keyboard=True,
-        input_field_placeholder="Выберите действие...",
     )
     return task_kb
 
@@ -175,8 +168,6 @@ async def manage_project(project_id):
             ],
             [InlineKeyboardButton(text="🔙Назад", callback_data="list_projects")],
         ],
-        resize_keyboard=True,
-        input_field_placeholder="Выберите действие...",
     )
     return project_kb
 
@@ -277,3 +268,30 @@ async def general_tasks(project_id, user_id):
     # Create a new InlineKeyboardMarkup with the modified buttons
     new_keyboard = InlineKeyboardMarkup(inline_keyboard=new_inline_keyboard)
     return new_keyboard
+
+
+async def cancel(user_id, project_id):
+    """
+    Asynchronously creates an inline keyboard markup with a cancel button that has a callback data
+    generated using the provided user_id and project_id. The callback data is in the format
+    "cancel_{user_id}_{project_id}". The keyboard has a single row with a single button. The button
+    text is "✖️Отмена" (which translates to "✖️Cancel" in English).
+
+    :param user_id: The ID of the user.
+    :type user_id: int
+    :param project_id: The ID of the project.
+    :type project_id: int
+    :return: An InlineKeyboardMarkup object with the cancel button and callback data.
+    :rtype: InlineKeyboardMarkup
+    """
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✖️Отмена",
+                    callback_data=f"cancel_{user_id}_{project_id}",
+                ),
+            ],
+        ],
+    )
+    return keyboard
