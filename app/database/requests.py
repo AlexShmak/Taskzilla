@@ -86,7 +86,9 @@ async def get_project_tasks(project_id, user_id):
     """
     async with async_session() as session:
         return await session.scalars(
-            select(Task).where(Task.project_id == project_id, Task.user_id == user_id)
+            select(Task).where(
+                Task.project_id == project_id and Task.user_id == user_id
+            )
         )
 
 
@@ -104,7 +106,76 @@ async def get_project_name(project_id, user_id):
     """
     async with async_session() as session:
         project = await session.scalar(
-            select(Project).where(Project.id == project_id, Project.user_id == user_id)
+            select(Project).where(
+                Project.id == project_id and Project.user_id == user_id
+            )
         )
 
         return project.name
+
+
+async def get_general_project_id(user_id):
+    """
+    Asynchronously retrieves the ID of the "General" project associated with the given user ID.
+
+    Args:
+        user_id (int): The ID of the user.
+
+    Returns:
+        int or None: The ID of the "General" project if it exists, None otherwise.
+    """
+    async with async_session() as session:
+        project = await session.scalar(
+            select(Project).where(
+                Project.user_id == user_id and Project.name == "General"
+            )
+        )
+
+        return project.id
+
+
+async def project_is_general(project_id, user_id):
+    """
+    Asynchronously checks if a project is the "General" project for a given user.
+
+    Args:
+        project_id (int): The ID of the project to check.
+        user_id (int): The ID of the user.
+
+    Returns:
+        bool: True if the project is the "General" project for the user, False otherwise.
+    """
+    async with async_session() as session:
+        project = await session.scalar(
+            select(Project).where(
+                Project.id == project_id
+                and Project.user_id == user_id
+                and Project.name == "General"
+            )
+        )
+
+        return project.name == "General"
+
+
+async def get_task_state(task_id, project_id, user_id):
+    """
+    Asynchronously retrieves the status of a task given its ID, project ID, and user ID.
+
+    :param task_id: The ID of the task to retrieve the status for.
+    :type task_id: int
+    :param project_id: The ID of the project the task belongs to.
+    :type project_id: int
+    :param user_id: The ID of the user who owns the task.
+    :type user_id: int
+    :return: The status of the task.
+    :rtype: str
+    """
+    async with async_session() as session:
+        task = await session.scalar(
+            select(Task).where(
+                Task.id == task_id
+                and Task.project_id == project_id
+                and Task.user_id == user_id
+            )
+        )
+        return task.status

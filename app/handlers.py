@@ -35,7 +35,11 @@ async def cmd_start(message: Message):
     """Command /start"""
     await rq.add_user(message.from_user.id)
     await rq.add_project(message.from_user.id, "General")
-    await message.answer(t.GREETING, reply_markup=kb.start_kb, parse_mode="Markdown")
+    await message.answer(
+        t.GREETING,
+        reply_markup=await kb.starting_kb(message.from_user.id),
+        parse_mode="Markdown",
+    )
 
 
 @router.message(Command("help"))
@@ -50,18 +54,58 @@ async def cmd_luck(message: Message):
     await message.answer_dice(emoji="🎰")
 
 
-@router.message(F.text == "📝Новая задача")
-async def new_task(message: Message, state: FSMContext):
+@router.callback_query(F.data.startswith("new_task_"))
+async def new_task(callback: CallbackQuery, state: FSMContext):
     """Create a new task"""
+    await callback.answer("Создание новой задачи")
     await state.set_state(States.waiting_for_task_name)
-    await message.answer("Введите название задачи", reply_markup=ReplyKeyboardRemove())
+    await state.update_data(
+        project_id=callback.data.split("_")[2], message_id=callback.message.message_id
+    )
+    await callback.message.edit_text("Введите название задачи")
 
 
-@router.message(F.text == "📚Новый проект")
-async def new_project(message: Message, state: FSMContext):
-    """Creatie a new task"""
+@router.message(States.waiting_for_task_name)
+async def create_new_task(message: Message, state: FSMContext):
+    """Create a new task"""
+    data = await state.get_data()
+    await rq.add_task(data["project_id"], message.text, message.from_user.id)
+    await state.clear()
+    await message.delete()
+    await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+    if rq.project_is_general(data["project_id"], message.from_user.id):
+        await message.answer(
+            f'Задача "{message.text}" создана',
+            reply_markup=await kb.general_tasks(
+                data["project_id"], message.from_user.id
+            ),
+        )
+    else:
+        await message.answer(
+            f'Задача "{message.text}" создана',
+            reply_markup=await kb.project_tasks(
+                data["project_id"], message.from_user.id
+            ),
+        )
+
+
+@router.callback_query(F.data.startswith("task_"))
+async def task(callback: CallbackQuery):
+    """Manage a task"""
+    await callback.answer("Вы выбрали задачу")
+    await callback.message.edit_text(
+        "Вы выбрали задачу", reply_markup=await kb.manage_task
+    )
+
+
+@router.callback_query(F.data == "new_project")
+async def new_project(callback: CallbackQuery, state: FSMContext):
+    """Create a new task"""
+    await callback.answer("Создание нового проекта")
     await state.set_state(States.waiting_for_project_name)
-    await message.answer("Введите название проекта", reply_markup=ReplyKeyboardRemove())
+    await callback.message.edit_text(
+        "Введите название проекта", reply_markup=ReplyKeyboardRemove()
+    )
 
 
 @router.callback_query(F.data == "list_general_tasks")
@@ -116,9 +160,10 @@ async def manage_project(callback: CallbackQuery):
 async def go_back(callback: CallbackQuery):
     """Go back to the main menu"""
     await callback.answer("Возвращаю в главное меню")
-    await callback.message.edit_text('Главная "Страница"', reply_markup=kb.start_kb)
+    await callback.message.edit_text(
+        "Главное меню", reply_markup=await kb.starting_kb(callback.from_user.id)
+    )
 
 
 # TODO: adding new project
-# TODO: adding new task
 # FIXME: transition between keyboards

@@ -53,7 +53,7 @@ class Project(Base):
     user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.tg_id"))
 
 
-class TaskState(Enum):
+class TaskStatus(Enum):
     """
     Represents the state of a task.
 
@@ -85,7 +85,7 @@ class Task(Base):
     name: Mapped[str] = mapped_column(String(256))
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.tg_id"))
-    task_state: Mapped[TaskState] = mapped_column(default=TaskState.NOT_STARTED)
+    status: Mapped[TaskStatus] = mapped_column(default=TaskStatus.NOT_STARTED)
 
 
 async def async_main():
