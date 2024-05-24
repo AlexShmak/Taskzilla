@@ -30,10 +30,10 @@ async def starting_kb(user_id):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📝Новая задача", callback_data=f"new_task_{project_id}"
+                    text="📝Новая задача", callback_data=f"new_task_{project_id}_main"
                 ),
                 InlineKeyboardButton(
-                    text="📚Новый проект", callback_data="new_project"
+                    text="📚Новый проект", callback_data="new_project_main"
                 ),
             ],
             [
@@ -98,7 +98,7 @@ change_project_kb = InlineKeyboardMarkup(
 
 
 # Keyboards to interact with tasks
-async def manage_task(project_id, task_id):
+async def manage_task(project_id, task_id, back_callback_data):
     """
     Asynchronously creates an inline keyboard markup for managing a task.
     :param project_id: The ID of the project the task belongs to.
@@ -108,6 +108,7 @@ async def manage_task(project_id, task_id):
     :return: An inline keyboard markup for managing the task.
     :rtype: InlineKeyboardMarkup
     """
+
     task_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -130,11 +131,7 @@ async def manage_task(project_id, task_id):
                     callback_data=f"change_task_{project_id}_{task_id}",
                 )
             ],
-            [
-                InlineKeyboardButton(
-                    text="🔙Назад", callback_data=f"list_tasks_{project_id}"
-                )
-            ],
+            [InlineKeyboardButton(text="🔙Назад", callback_data=back_callback_data)],
         ],
     )
     return task_kb
@@ -193,7 +190,7 @@ async def projects(user_id):
                 )
             )
     keyboard.add(
-        InlineKeyboardButton(text="➕Новый проект", callback_data="new_project")
+        InlineKeyboardButton(text="➕Новый проект", callback_data="new_project_list")
     )
     keyboard.add(InlineKeyboardButton(text="🔙Назад", callback_data="to_start_kb"))
     return keyboard.adjust(1).as_markup()
@@ -221,7 +218,7 @@ async def project_tasks(project_id, user_id):
         )
     keyboard.add(
         InlineKeyboardButton(
-            text="➕Новая задача", callback_data=f"new_task_{project_id}"
+            text="➕Новая задача", callback_data=f"new_task_{project_id}_list"
         )
     )
     keyboard.add(
@@ -270,7 +267,7 @@ async def general_tasks(project_id, user_id):
     return new_keyboard
 
 
-async def cancel(user_id, project_id):
+async def cancel(user_id, project_id, position):
     """
     Asynchronously creates an inline keyboard markup with a cancel button that has a callback data
     generated using the provided user_id and project_id. The callback data is in the format
@@ -284,12 +281,17 @@ async def cancel(user_id, project_id):
     :return: An InlineKeyboardMarkup object with the cancel button and callback data.
     :rtype: InlineKeyboardMarkup
     """
+    if not project_id:
+        project_callback = "none"
+    else:
+        project_callback = f"{project_id}"
+
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="✖️Отмена",
-                    callback_data=f"cancel_{user_id}_{project_id}",
+                    callback_data=f"cancel_{user_id}_{project_callback}_{position}",
                 ),
             ],
         ],
