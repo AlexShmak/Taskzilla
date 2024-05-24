@@ -30,10 +30,11 @@ async def starting_kb(user_id):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📝Новая задача", callback_data=f"new_task_{project_id}_main"
+                    text="📝Новая задача",
+                    callback_data=f"new_task_{project_id}_general",
                 ),
                 InlineKeyboardButton(
-                    text="📚Новый проект", callback_data="new_project_main"
+                    text="📚Новый проект", callback_data="new_project_general"
                 ),
             ],
             [
@@ -160,7 +161,8 @@ async def manage_project(project_id):
                     text="✏️Изменить проект", callback_data="change_project"
                 ),
                 InlineKeyboardButton(
-                    text="➕Новая задача", callback_data=f"new_task_{project_id}"
+                    text="➕Новая задача",
+                    callback_data=f"new_task_{project_id}_project",
                 ),
             ],
             [InlineKeyboardButton(text="🔙Назад", callback_data="list_projects")],
@@ -213,7 +215,8 @@ async def project_tasks(project_id, user_id):
     for task in all_tasks:
         keyboard.add(
             InlineKeyboardButton(
-                text=task.name, callback_data=f"task_{user_id}_{project_id}_{task.id}"
+                text=task.name,
+                callback_data=f"task_{user_id}_{project_id}_{task.id}_list",
             )
         )
     keyboard.add(
@@ -257,9 +260,17 @@ async def general_tasks(project_id, user_id):
                     text=button.text, callback_data="to_start_kb"
                 )
                 new_row.append(new_button)
+            elif button.callback_data == f"new_task_{project_id}_list":
+                new_button = InlineKeyboardButton(
+                    text=button.text, callback_data=f"new_task_{project_id}_general"
+                )
+                new_row.append(new_button)
             else:
-                # Otherwise, keep the button unchanged
-                new_row.append(button)
+                new_callback_data = button.callback_data + "_general"
+                new_button = InlineKeyboardButton(
+                    text=button.text, callback_data=new_callback_data
+                )
+                new_row.append(new_button)
         new_inline_keyboard.append(new_row)
 
     # Create a new InlineKeyboardMarkup with the modified buttons

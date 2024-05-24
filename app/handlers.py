@@ -61,9 +61,9 @@ async def new_task(callback: CallbackQuery, state: FSMContext):
     await callback.answer("Создание новой задачи")
     await state.set_state(States.waiting_for_task_name)
     project_id = callback.data.split("_")[2]
-    position = callback.data.split("_")[-1]
+    position = callback.data.split("_")[3]
     await state.update_data(
-        project_id=project_id, message_id=callback.message.message_id
+        project_id=project_id, message_id=callback.message.message_id, position=position
     )
     await callback.message.edit_text(
         "Введите название задачи",
@@ -75,24 +75,27 @@ async def new_task(callback: CallbackQuery, state: FSMContext):
 async def create_new_task(message: Message, state: FSMContext):
     """Create a new task: receiving task name"""
     data = await state.get_data()
+    project_name = await rq.get_project_name(data["project_id"], message.from_user.id)
+    project_id = data["project_id"]
     await rq.add_task(data["project_id"], f"🟣 {message.text}", message.from_user.id)
-    await state.clear()
     await message.delete()
     await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
-    if rq.project_is_general(data["project_id"], message.from_user.id):
+    if data["position"] == "general":
         await message.answer(
-            f'Задача "{message.text}" создана',
-            reply_markup=await kb.general_tasks(
-                data["project_id"], message.from_user.id
-            ),
+            f'Задача "{message.text}" в общих задачах создана',
+            reply_markup=await kb.general_tasks(project_id, message.from_user.id),
         )
-    else:
+    elif data["position"] == "list":
         await message.answer(
-            f'Задача "{message.text}" создана',
-            reply_markup=await kb.project_tasks(
-                data["project_id"], message.from_user.id
-            ),
+            f'Задача "{message.text}" в проекте "{project_name}" создана',
+            reply_markup=await kb.project_tasks(project_id, message.from_user.id),
         )
+    elif data["position"] == "project":
+        await message.answer(
+            f'Задача "{message.text}" в проекте "{project_name}" создана',
+            reply_markup=await kb.manage_project(project_id),
+        )
+    await state.clear()
 
 
 @router.callback_query(F.data.startswith("task_"))
@@ -100,13 +103,20 @@ async def task(callback: CallbackQuery):
     """Manage a task"""
     project_id = callback.data.split("_")[2]
     task_id = callback.data.split("_")[3]
-    if rq.project_is_general(project_id, callback.from_user.id):
+    task_name = await rq.get_task_name(task_id, project_id, callback.from_user.id)
+    project_name = await rq.get_project_name(project_id, callback.from_user.id)
+    position = callback.data.split("_")[-1]
+    if position == "general":
         back_callback_data = "list_general_tasks"
-    else:
+        answer = f"Вы выбрали задачу '{task_name}' в общих задачаx"
+        print("\ntrue\n")
+    elif position == "list":
         back_callback_data = f"list_tasks_{project_id}"
-    await callback.answer("Вы выбрали задачу")
+        answer = f"Вы выбрали задачу '{task_name}' в проекте '{project_name}'"
+        print("\nfalse\n")
+    await callback.answer(answer)
     await callback.message.edit_text(
-        "Вы выбрали задачу",
+        answer,
         reply_markup=await kb.manage_task(project_id, task_id, back_callback_data),
     )
 
@@ -115,32 +125,29 @@ async def task(callback: CallbackQuery):
 async def list_general_tasks(callback: CallbackQuery):
     """List all general tasks"""
     await callback.answer("Список общих задач")
-    projects = await rq.get_projects(callback.from_user.id)
-    for project in projects:
-        if project.name == "General":
-            needed_id = project.id
+    general_project_id = await rq.get_general_project_id(callback.from_user.id)
     await callback.message.edit_text(
         "Список общих задач",
-        reply_markup=await kb.general_tasks(needed_id, callback.from_user.id),
+        reply_markup=await kb.general_tasks(general_project_id, callback.from_user.id),
     )
 
 
 @router.callback_query(F.data.startswith("list_tasks_"))
 async def list_tasks(callback: CallbackQuery):
     """List all tasks"""
+    project_id = callback.data.split("_")[2]
+    project_name = await rq.get_project_name(project_id, callback.from_user.id)
     await callback.answer("Список задач")
     await callback.message.edit_text(
-        "Список общих задач",
-        reply_markup=await kb.project_tasks(
-            callback.data.split("_")[2], callback.from_user.id
-        ),
+        f'Список задач проекта "{project_name}"',
+        reply_markup=await kb.project_tasks(project_id, callback.from_user.id),
     )
 
 
 # Handling messages related to PROJECTS
 @router.callback_query(F.data.startswith("new_project_"))
 async def new_project(callback: CallbackQuery, state: FSMContext):
-    """Create a new project"""
+    """Create a new project: asking for project name"""
     await callback.answer("Создание нового проекта")
     await state.set_state(States.waiting_for_project_name)
     await state.update_data(message_id=callback.message.message_id)
@@ -148,6 +155,20 @@ async def new_project(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "Введите название проекта",
         reply_markup=await kb.cancel(callback.from_user.id, None, position),
+    )
+
+
+@router.message(States.waiting_for_project_name)
+async def create_new_project(message: Message, state: FSMContext):
+    """Create a new project: receiving project name"""
+    data = await state.get_data()
+    await rq.add_project(message.from_user.id, message.text)
+    await state.clear()
+    await message.delete()
+    await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+    await message.answer(
+        f'Проект "{message.text}" создан',
+        reply_markup=await kb.projects(message.from_user.id),
     )
 
 
@@ -163,13 +184,11 @@ async def list_projects(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("project_"))
 async def manage_project(callback: CallbackQuery):
     """Manage a project"""
-    project_name = await rq.get_project_name(
-        callback.data.split("_")[2], callback.data.split("_")[1]
-    )
-    await callback.answer(f"Вы выбрали проект: {project_name}")
+    project_id = callback.data.split("_")[2]
+    project_name = await rq.get_project_name(project_id, callback.from_user.id)
+    await callback.answer(f'Вы выбрали проект "{project_name}"')
     await callback.message.edit_text(
-        f"Проект: {project_name}",
-        reply_markup=await kb.manage_project(callback.data.split("_")[2]),
+        f"Проект: {project_name}", reply_markup=await kb.manage_project(project_id)
     )
 
 
@@ -192,9 +211,21 @@ async def cancel(callback: CallbackQuery):
                 "Главное меню", reply_markup=await kb.starting_kb(user_id)
             )
     else:
-        if position == "main":
+        if position == "general":
             await callback.message.edit_text(
                 "Главное меню", reply_markup=await kb.starting_kb(user_id)
+            )
+        elif position == "list":
+            project_name = await rq.get_project_name(project_callback, user_id)
+            await callback.message.edit_text(
+                f"Список задач проекта '{project_name}'",
+                reply_markup=await kb.project_tasks(project_callback, user_id),
+            )
+        elif position == "project":
+            project_name = await rq.get_project_name(project_callback, user_id)
+            await callback.message.edit_text(
+                f'Вы выбрали проект "{project_name}"',
+                reply_markup=await kb.manage_project(project_callback),
             )
         else:
             await callback.message.edit_text(
@@ -212,4 +243,6 @@ async def go_back(callback: CallbackQuery):
     )
 
 
-# TODO: finish adding new project
+# FIXME: transition inside general project
+# NOTE: forbid users to delete general project (they shouldn't be able to even see it)
+# NOTE: forbid users to create project with name GENERAL
