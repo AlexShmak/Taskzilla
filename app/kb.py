@@ -115,15 +115,15 @@ async def manage_task(project_id, task_id, back_callback_data):
             [
                 InlineKeyboardButton(
                     text="🟣Не начата",
-                    callback_data=f"not_started_{project_id}_{task_id}",
+                    callback_data=f"status_0_{project_id}_{task_id}",
                 ),
                 InlineKeyboardButton(
                     text="🔵В процессе",
-                    callback_data=f"in_progress_{project_id}_{task_id}",
+                    callback_data=f"status_1_{project_id}_{task_id}",
                 ),
                 InlineKeyboardButton(
                     text="🟢Завершена",
-                    callback_data=f"completed_{project_id}_{task_id}",
+                    callback_data=f"status_2_{project_id}_{task_id}",
                 ),
             ],
             [

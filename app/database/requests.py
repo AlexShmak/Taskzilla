@@ -197,3 +197,31 @@ async def get_task_state(task_id, project_id, user_id):
             )
         )
         return task.status
+
+
+async def change_task_state(task_id, project_id, user_id, status):
+    """
+    Asynchronously changes the state of a task in the database.
+
+    :param task_id: The ID of the task to change the state of.
+    :type task_id: int
+    :param project_id: The ID of the project the task belongs to.
+    :type project_id: int
+    :param user_id: The ID of the user who owns the task.
+    :type user_id: int
+    :param status: The new status to set for the task.
+    :type status: str
+    :return: None
+    :rtype: None
+    """
+    async with async_session() as session:
+        task = await session.scalar(
+            select(Task).where(
+                Task.user_id == user_id,
+                Task.id == task_id,
+                Task.project_id == project_id,
+            )
+        )
+
+        session.update(task(status=status))
+        await session.commit()

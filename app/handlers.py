@@ -42,16 +42,10 @@ async def cmd_start(message: Message):
     )
 
 
-@router.message(Command("help"))
-async def cmd_help(message: Message):
-    """Command /help"""
-    await message.reply(t.HELP, parse_mode="Markdown")
-
-
-@router.message(Command("luck"))
-async def cmd_luck(message: Message):
-    """Command /luck"""
-    await message.answer_dice(emoji="🎰")
+# @router.message(Command("help"))
+# async def cmd_help(message: Message):
+#     """Command /help"""
+#     await message.edit_text(t.HELP, parse_mode="Markdown")
 
 
 # Handling messages related to TASKS
@@ -144,6 +138,10 @@ async def list_tasks(callback: CallbackQuery):
     )
 
 
+# @router.callback_query(F.data.startswith("status_"))
+# async def status(callback: CallbackQuery):
+
+
 # Handling messages related to PROJECTS
 @router.callback_query(F.data.startswith("new_project_"))
 async def new_project(callback: CallbackQuery, state: FSMContext):
@@ -162,14 +160,24 @@ async def new_project(callback: CallbackQuery, state: FSMContext):
 async def create_new_project(message: Message, state: FSMContext):
     """Create a new project: receiving project name"""
     data = await state.get_data()
-    await rq.add_project(message.from_user.id, message.text)
-    await state.clear()
-    await message.delete()
-    await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
-    await message.answer(
-        f'Проект "{message.text}" создан',
-        reply_markup=await kb.projects(message.from_user.id),
-    )
+    project_name = message.text
+    if project_name == "General":
+        await state.clear()
+        await message.delete()
+        await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+        await message.answer(
+            "Cписок проектов\nОшибка: Нельзя использовать название 'General'",
+            reply_markup=await kb.projects(message.from_user.id),
+        )
+    else:
+        await rq.add_project(message.from_user.id, message.text)
+        await state.clear()
+        await message.delete()
+        await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+        await message.answer(
+            f'Проект "{project_name}" создан',
+            reply_markup=await kb.projects(message.from_user.id),
+        )
 
 
 @router.callback_query(F.data == "list_projects")
@@ -243,6 +251,47 @@ async def go_back(callback: CallbackQuery):
     )
 
 
-# FIXME: transition inside general project
-# NOTE: forbid users to delete general project (they shouldn't be able to even see it)
+@router.message(
+    F.content_type.in_(
+        {
+            "text",
+            "sticker",
+            "animation",
+            "video_note",
+            "voice",
+            "video",
+            "photo",
+            "document",
+            "game",
+            "story",
+            "autio",
+            "contact",
+            "dice",
+            "poll",
+            "location",
+            "venue",
+            "new_chat_members",
+            "left_chat_member",
+            "new_chat_title",
+            "new_chat_photo",
+            "delete_chat_photo",
+            "group_chat_created",
+            "supergroup_chat_created",
+            "channel_chat_created",
+            "migrate_to_chat_id",
+            "migrate_from_chat_id",
+            "pinned_message",
+            "invoice",
+            "successful_payment",
+            "passport_data",
+        }
+    )
+)
+async def filter_trash(message: Message):
+    """Filter trash messages"""
+    await message.delete()
+
+
 # NOTE: forbid users to create project with name GENERAL
+# TODO: fix HELP keyboard
+# TODO: change keyboard for tasks and projects (delete, rename, change state[for tasks])
