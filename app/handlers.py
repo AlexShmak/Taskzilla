@@ -27,6 +27,8 @@ class States(StatesGroup):
 
     waiting_for_task_name = State()
     waiting_for_project_name = State()
+    waiting_for_new_task_name = State()
+    waiting_for_new_project_name = State()
 
 
 @router.message(CommandStart())
@@ -126,6 +128,24 @@ async def change_task(callback: CallbackQuery):
             callback.from_user.id, project_id, task_id, position
         )
     )
+
+
+@router.callback_query(F.data.startswith("delete_task_"))
+async def delete_task(callback: CallbackQuery):
+    """Delete task"""
+    project_id = callback.data.split("_")[2]
+    task_id = callback.data.split("_")[3]
+    position = callback.data.split("_")[4]
+    await callback.answer("Удаление задачи")
+    await rq.delete_task(task_id, project_id, callback.from_user.id)
+    project_name = await rq.get_project_name(project_id, callback.from_user.id)
+    if position == "general":
+        text = "Cписок общих задач"
+        keyboard = await kb.general_tasks(project_id, callback.from_user.id)
+    else:
+        keyboard = await kb.project_tasks(project_id, callback.from_user.id)
+        text = f'Список задач проекта "{project_name}"'
+    await callback.message.edit_text(text=text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "list_general_tasks")
@@ -256,6 +276,17 @@ async def change_project(callback: CallbackQuery):
     await callback.answer("Изменение проекта")
     await callback.message.edit_reply_markup(
         reply_markup=await kb.change_project_kb(project_id, callback.from_user.id)
+    )
+
+
+@router.callback_query(F.data.startswith("delete_project_"))
+async def delete_project(callback: CallbackQuery):
+    """Delete project"""
+    project_id = callback.data.split("_")[2]
+    await callback.answer("Удаление проекта")
+    await rq.delete_project(project_id, callback.from_user.id)
+    await callback.message.edit_text(
+        "Список проектов", reply_markup=await kb.projects(callback.from_user.id)
     )
 
 

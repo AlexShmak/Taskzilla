@@ -59,10 +59,11 @@ async def change_task_kb(user_id, project_id, task_id, position):
             [
                 InlineKeyboardButton(
                     text="📝Переименовать задачу",
-                    callback_data=f"rename_task_{project_id}",
+                    callback_data=f"rename_task_{project_id}_{task_id}_{position}",
                 ),
                 InlineKeyboardButton(
-                    text="❌Удалить", callback_data=f"delete_task_{project_id}"
+                    text="❌Удалить",
+                    callback_data=f"delete_task_{project_id}_{task_id}_{position}",
                 ),
             ],
             [
@@ -87,9 +88,13 @@ async def change_project_kb(project_id, user_id):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📝Переименовать проект", callback_data="rename_project"
+                    text="📝Переименовать проект",
+                    callback_data=f"rename_project_{project_id}",
                 ),
-                InlineKeyboardButton(text="❌Удалить", callback_data="delete_project"),
+                InlineKeyboardButton(
+                    text="❌Удалить",
+                    callback_data=f"delete_project_{project_id}",
+                ),
             ],
             [
                 InlineKeyboardButton(

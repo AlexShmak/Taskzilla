@@ -4,11 +4,12 @@ from enum import Enum
 
 from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 engine = create_async_engine(
     url="sqlite+aiosqlite:///app/database/db.sqlite3", echo=True
 )
+
 
 async_session = async_sessionmaker(engine)
 
@@ -52,6 +53,13 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(256))
     user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.tg_id"))
 
+    children = relationship(
+        "Task",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
 
 class TaskStatus(Enum):
     """
@@ -83,10 +91,14 @@ class Task(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(256))
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE")
+    )
     user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.tg_id"))
     status: Mapped[TaskStatus] = mapped_column(default=TaskStatus.NOTSTARTED)
     emoji: Mapped[str] = mapped_column(default="🟣")
+
+    parent = relationship("Project", back_populates="children")
 
 
 async def async_main():

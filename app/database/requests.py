@@ -1,8 +1,8 @@
 """This file contains all database requests for the bot"""
 
-from app.database.models import User, Project, Task, async_session
+from sqlalchemy import BigInteger, delete, select, update
 
-from sqlalchemy import BigInteger, select, update, delete
+from app.database.models import Project, Task, User, async_session
 
 
 async def add_user(tg_id: int):
@@ -243,5 +243,66 @@ async def change_task_status_to_completed(task_id, project_id, user_id, new_stat
                 emoji="🟢",
                 status=new_status,
             )
+        )
+        await session.commit()
+
+
+async def delete_project_tasks(project_id, user_id):
+    """Asynchronously deletes all tasks associated with the given project ID and user ID."""
+    async with async_session() as session:
+        await session.execute(
+            delete(Task).where(Task.project_id == project_id, Task.user_id == user_id)
+        )
+        await session.commit()
+
+
+async def delete_project(project_id, user_id):
+    """Asynchronously deletes a project from the database."""
+    async with async_session() as session:
+        await delete_project_tasks(project_id, user_id)
+        await session.execute(
+            delete(Project).where(Project.id == project_id, Project.user_id == user_id)
+        )
+        await session.commit()
+
+
+async def delete_task(task_id, project_id, user_id):
+    """Asynchronously deletes a task from the database."""
+    async with async_session() as session:
+        await session.execute(
+            delete(Task).where(
+                Task.id == task_id,
+                Task.project_id == project_id,
+                Task.user_id == user_id,
+            )
+        )
+        await session.commit()
+
+
+async def rename_project(project_id, user_id, new_name):
+    """Asynchronously renames a project in the database."""
+    async with async_session() as session:
+        await session.execute(
+            update(Project)
+            .where(
+                Project.id == project_id,
+                Project.user_id == user_id,
+            )
+            .values(name=new_name)
+        )
+        await session.commit()
+
+
+async def rename_task(task_id, project_id, user_id, new_name):
+    """Asynchronously renames a task in the database."""
+    async with async_session() as session:
+        await session.execute(
+            update(Task)
+            .where(
+                Task.id == task_id,
+                Task.user_id == user_id,
+                Task.project_id == project_id,
+            )
+            .values(name=new_name)
         )
         await session.commit()
