@@ -20,11 +20,6 @@ async def starting_kb(user_id):
     Asynchronously creates an inline keyboard markup with buttons to create a new task,
     a new project, or list general tasks or projects. The callback data for each button is
     dynamically generated using the provided user_id.
-
-    :param user_id: The ID of the user.
-    :type user_id: int
-    :return: An InlineKeyboardMarkup object with the buttons and callback data.
-    :rtype: InlineKeyboardMarkup
     """
     project_id = await get_general_project_id(user_id)
     start_kb = InlineKeyboardMarkup(
@@ -53,16 +48,11 @@ async def starting_kb(user_id):
     return start_kb
 
 
-async def change_task_kb(project_id):
+async def change_task_kb(user_id, project_id, task_id, position):
     """
     Asynchronously creates an inline keyboard markup with buttons to rename or delete a task,
     and a back button. The callback data for each button is dynamically generated using the
     provided project_id.
-
-    :param project_id: The ID of the project that the task belongs to.
-    :type project_id: int
-    :return: An InlineKeyboardMarkup object with the buttons and callback data.
-    :rtype: InlineKeyboardMarkup
     """
     change_t_kb = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -77,7 +67,8 @@ async def change_task_kb(project_id):
             ],
             [
                 InlineKeyboardButton(
-                    text="🔙Назад", callback_data=f"list_tasks_{project_id}"
+                    text="🔙Назад",
+                    callback_data=f"task_{user_id}_{project_id}_{task_id}_{position}",
                 )
             ],
         ],
@@ -86,17 +77,28 @@ async def change_task_kb(project_id):
     return change_t_kb
 
 
-change_project_kb = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="📝Переименовать проект", callback_data="rename_project"
-            ),
-            InlineKeyboardButton(text="❌Удалить", callback_data="delete_project"),
+async def change_project_kb(project_id, user_id):
+    """
+    Asynchronously creates an inline keyboard markup with buttons to rename or delete a project,
+    and a back button. The callback data for each button is dynamically generated using the
+    provided project_id and user_id.
+    """
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📝Переименовать проект", callback_data="rename_project"
+                ),
+                InlineKeyboardButton(text="❌Удалить", callback_data="delete_project"),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔙Назад", callback_data=f"project_{user_id}_{project_id}"
+                )
+            ],
         ],
-        [InlineKeyboardButton(text="🔙Назад", callback_data="project")],
-    ],
-)
+    )
+    return keyboard
 
 
 # Keyboards to interact with tasks
@@ -124,7 +126,7 @@ async def manage_task(project_id, task_id, back_callback_data, position):
             [
                 InlineKeyboardButton(
                     text="✏️Изменить задачу",
-                    callback_data=f"change_task_{project_id}_{task_id}",
+                    callback_data=f"change_task_{project_id}_{task_id}_{position}",
                 )
             ],
             [InlineKeyboardButton(text="🔙Назад", callback_data=back_callback_data)],
@@ -148,7 +150,8 @@ async def manage_project(project_id):
             ],
             [
                 InlineKeyboardButton(
-                    text="✏️Изменить проект", callback_data="change_project"
+                    text="✏️Изменить проект",
+                    callback_data=f"change_project_{project_id}",
                 ),
                 InlineKeyboardButton(
                     text="➕Новая задача",

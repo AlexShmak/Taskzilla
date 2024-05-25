@@ -114,6 +114,20 @@ async def task(callback: CallbackQuery):
     )
 
 
+@router.callback_query(F.data.startswith("change_task_"))
+async def change_task(callback: CallbackQuery):
+    """Change task"""
+    project_id = callback.data.split("_")[2]
+    task_id = callback.data.split("_")[3]
+    position = callback.data.split("_")[4]
+    await callback.answer("Изменение задачи")
+    await callback.message.edit_reply_markup(
+        reply_markup=await kb.change_task_kb(
+            callback.from_user.id, project_id, task_id, position
+        )
+    )
+
+
 @router.callback_query(F.data == "list_general_tasks")
 async def list_general_tasks(callback: CallbackQuery):
     """List all general tasks"""
@@ -232,6 +246,16 @@ async def manage_project(callback: CallbackQuery):
     await callback.answer(f'Вы выбрали проект "{project_name}"')
     await callback.message.edit_text(
         f"Проект: {project_name}", reply_markup=await kb.manage_project(project_id)
+    )
+
+
+@router.callback_query(F.data.startswith("change_project_"))
+async def change_project(callback: CallbackQuery):
+    """Change project"""
+    project_id = callback.data.split("_")[2]
+    await callback.answer("Изменение проекта")
+    await callback.message.edit_reply_markup(
+        reply_markup=await kb.change_project_kb(project_id, callback.from_user.id)
     )
 
 
