@@ -42,12 +42,6 @@ async def cmd_start(message: Message):
     )
 
 
-# @router.message(Command("help"))
-# async def cmd_help(message: Message):
-#     """Command /help"""
-#     await message.edit_text(t.HELP, parse_mode="Markdown")
-
-
 # Handling messages related to TASKS
 @router.callback_query(F.data.startswith("new_task_"))
 async def new_task(callback: CallbackQuery, state: FSMContext):
@@ -333,6 +327,5 @@ async def filter_trash(message: Message):
     await message.delete()
 
 
-# NOTE: forbid users to create project with name GENERAL
 # TODO: fix HELP keyboard
 # TODO: change keyboard for tasks and projects (delete, rename, change state[for tasks])
