@@ -58,13 +58,13 @@ class TaskStatus(Enum):
     Represents the state of a task.
 
     Attributes:
-        NOT_STARTED (int): The task has not been started.
-        IN_PROGRESS (int): The task is in progress.
+        NOTSTARTED (int): The task has not been started.
+        INPROGRESS (int): The task is in progress.
         COMPLETED (int): The task has been completed.
     """
 
-    NOT_STARTED = 0
-    IN_PROGRESS = 1
+    NOTSTARTED = 0
+    INPROGRESS = 1
     COMPLETED = 2
 
 
@@ -85,7 +85,8 @@ class Task(Base):
     name: Mapped[str] = mapped_column(String(256))
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.tg_id"))
-    status: Mapped[TaskStatus] = mapped_column(default=TaskStatus.NOT_STARTED)
+    status: Mapped[TaskStatus] = mapped_column(default=TaskStatus.NOTSTARTED)
+    emoji: Mapped[str] = mapped_column(default="🟣")
 
 
 async def async_main():

@@ -10,6 +10,7 @@ from app.database.requests import (
     get_projects,
     get_project_tasks,
     get_general_project_id,
+    get_task_emoji,
 )
 
 
@@ -99,7 +100,7 @@ change_project_kb = InlineKeyboardMarkup(
 
 
 # Keyboards to interact with tasks
-async def manage_task(project_id, task_id, back_callback_data):
+async def manage_task(project_id, task_id, back_callback_data, position):
     """
     Asynchronously creates an inline keyboard markup for managing a task.
     :param project_id: The ID of the project the task belongs to.
@@ -115,15 +116,15 @@ async def manage_task(project_id, task_id, back_callback_data):
             [
                 InlineKeyboardButton(
                     text="🟣Не начата",
-                    callback_data=f"status_0_{project_id}_{task_id}",
+                    callback_data=f"status_NOTSTARTED_{project_id}_{task_id}_{position}",
                 ),
                 InlineKeyboardButton(
                     text="🔵В процессе",
-                    callback_data=f"status_1_{project_id}_{task_id}",
+                    callback_data=f"status_INPROGRESS_{project_id}_{task_id}_{position}",
                 ),
                 InlineKeyboardButton(
                     text="🟢Завершена",
-                    callback_data=f"status_2_{project_id}_{task_id}",
+                    callback_data=f"status_COMPLETED_{project_id}_{task_id}_{position}",
                 ),
             ],
             [
@@ -213,9 +214,10 @@ async def project_tasks(project_id, user_id):
     all_tasks = await get_project_tasks(project_id, user_id)
     keyboard = InlineKeyboardBuilder()
     for task in all_tasks:
+        task_emoji = await get_task_emoji(task.id, project_id, user_id)
         keyboard.add(
             InlineKeyboardButton(
-                text=task.name,
+                text=f"{task_emoji} {task.name}",
                 callback_data=f"task_{user_id}_{project_id}_{task.id}_list",
             )
         )

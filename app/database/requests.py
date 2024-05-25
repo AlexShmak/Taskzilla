@@ -1,6 +1,6 @@
 """This file contains all database requests for the bot"""
 
-from app.database.models import User, Project, Task, async_session
+from app.database.models import User, Project, Task, async_session, TaskStatus
 
 from sqlalchemy import BigInteger, select, update, delete
 
@@ -152,6 +152,31 @@ async def get_general_project_id(user_id):
         return project.id
 
 
+async def get_task_id(task_name, project_id, user_id):
+    """
+    Asynchronously retrieves the ID of a task based on its name, project ID, and user ID.
+
+    :param task_name: The name of the task to retrieve the ID for.
+    :type task_name: str
+    :param project_id: The ID of the project the task belongs to.
+    :type project_id: int
+    :param user_id: The ID of the user who owns the task.
+    :type user_id: int
+    :return: The ID of the task if it exists, None otherwise.
+    :rtype: int or None
+    """
+    async with async_session() as session:
+        task = await session.scalar(
+            select(Task).where(
+                Task.name == task_name,
+                Task.project_id == project_id,
+                Task.user_id == user_id,
+            )
+        )
+
+        return task.id
+
+
 async def project_is_general(project_id, user_id):
     """
     Asynchronously checks if a project is the "General" project for a given user.
@@ -175,7 +200,7 @@ async def project_is_general(project_id, user_id):
         return bool(project)
 
 
-async def get_task_state(task_id, project_id, user_id):
+async def get_task_status(task_id, project_id, user_id):
     """
     Asynchronously retrieves the status of a task given its ID, project ID, and user ID.
 
@@ -199,29 +224,76 @@ async def get_task_state(task_id, project_id, user_id):
         return task.status
 
 
-async def change_task_state(task_id, project_id, user_id, status):
+async def get_task_emoji(task_id, project_id, user_id):
     """
-    Asynchronously changes the state of a task in the database.
+    Asynchronously retrieves the emoji of a task given its ID, project ID, and user ID.
 
-    :param task_id: The ID of the task to change the state of.
+    :param task_id: The ID of the task to retrieve the emoji for.
     :type task_id: int
     :param project_id: The ID of the project the task belongs to.
     :type project_id: int
     :param user_id: The ID of the user who owns the task.
     :type user_id: int
-    :param status: The new status to set for the task.
-    :type status: str
-    :return: None
-    :rtype: None
+    :return: The emoji of the task.
+    :rtype: str
     """
     async with async_session() as session:
         task = await session.scalar(
             select(Task).where(
-                Task.user_id == user_id,
                 Task.id == task_id,
                 Task.project_id == project_id,
+                Task.user_id == user_id,
             )
         )
+        return task.emoji
 
-        session.update(task(status=status))
+
+async def change_task_status_to_inprogress(task_id, project_id, user_id, new_status):
+    async with async_session() as session:
+        await session.execute(
+            update(Task)
+            .where(
+                Task.id == task_id,
+                Task.user_id == user_id,
+                Task.project_id == project_id,
+            )
+            .values(
+                emoji="🔵",
+                status=new_status,
+            )
+        )
+        await session.commit()
+
+
+async def change_task_status_to_notstarted(task_id, project_id, user_id, new_status):
+    async with async_session() as session:
+        await session.execute(
+            update(Task)
+            .where(
+                Task.id == task_id,
+                Task.user_id == user_id,
+                Task.project_id == project_id,
+            )
+            .values(
+                emoji="🟣",
+                status=new_status,
+            )
+        )
+        await session.commit()
+
+
+async def change_task_status_to_completed(task_id, project_id, user_id, new_status):
+    async with async_session() as session:
+        await session.execute(
+            update(Task)
+            .where(
+                Task.id == task_id,
+                Task.user_id == user_id,
+                Task.project_id == project_id,
+            )
+            .values(
+                emoji="🟢",
+                status=new_status,
+            )
+        )
         await session.commit()

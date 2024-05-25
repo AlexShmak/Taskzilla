@@ -2,7 +2,7 @@
 
 from aiogram import F, Router
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
@@ -71,22 +71,24 @@ async def create_new_task(message: Message, state: FSMContext):
     data = await state.get_data()
     project_name = await rq.get_project_name(data["project_id"], message.from_user.id)
     project_id = data["project_id"]
-    await rq.add_task(data["project_id"], f"🟣 {message.text}", message.from_user.id)
+    await rq.add_task(data["project_id"], f"{message.text}", message.from_user.id)
+    task_id = await rq.get_task_id(message.text, project_id, message.from_user.id)
+    task_emoji = await rq.get_task_emoji(task_id, project_id, message.from_user.id)
     await message.delete()
     await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
     if data["position"] == "general":
         await message.answer(
-            f'Задача "{message.text}" в общих задачах создана',
+            f'Задача "{task_emoji} {message.text}" в общих задачах создана',
             reply_markup=await kb.general_tasks(project_id, message.from_user.id),
         )
     elif data["position"] == "list":
         await message.answer(
-            f'Задача "{message.text}" в проекте "{project_name}" создана',
+            f'Задача "{task_emoji} {message.text}" в проекте "{project_name}" создана',
             reply_markup=await kb.project_tasks(project_id, message.from_user.id),
         )
     elif data["position"] == "project":
         await message.answer(
-            f'Задача "{message.text}" в проекте "{project_name}" создана',
+            f'Задача "{task_emoji} {message.text}" в проекте "{project_name}" создана',
             reply_markup=await kb.manage_project(project_id),
         )
     await state.clear()
@@ -98,20 +100,23 @@ async def task(callback: CallbackQuery):
     project_id = callback.data.split("_")[2]
     task_id = callback.data.split("_")[3]
     task_name = await rq.get_task_name(task_id, project_id, callback.from_user.id)
+    task_emoji = await rq.get_task_emoji(task_id, project_id, callback.from_user.id)
     project_name = await rq.get_project_name(project_id, callback.from_user.id)
     position = callback.data.split("_")[-1]
     if position == "general":
         back_callback_data = "list_general_tasks"
-        answer = f"Вы выбрали задачу '{task_name}' в общих задачаx"
-        print("\ntrue\n")
+        answer = f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачаx'
     elif position == "list":
         back_callback_data = f"list_tasks_{project_id}"
-        answer = f"Вы выбрали задачу '{task_name}' в проекте '{project_name}'"
-        print("\nfalse\n")
+        answer = (
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"'
+        )
     await callback.answer(answer)
     await callback.message.edit_text(
         answer,
-        reply_markup=await kb.manage_task(project_id, task_id, back_callback_data),
+        reply_markup=await kb.manage_task(
+            project_id, task_id, back_callback_data, position
+        ),
     )
 
 
@@ -138,8 +143,44 @@ async def list_tasks(callback: CallbackQuery):
     )
 
 
-# @router.callback_query(F.data.startswith("status_"))
-# async def status(callback: CallbackQuery):
+@router.callback_query(F.data.startswith("status_"))
+async def status(callback: CallbackQuery):
+    """Change task status"""
+    callback_data_list = callback.data.split("_")
+    new_status = callback_data_list[1]
+    project_id = callback_data_list[2]
+    task_id = callback_data_list[3]
+    position = callback_data_list[4]
+    task_name = await rq.get_task_name(task_id, project_id, callback.from_user.id)
+    project_name = await rq.get_project_name(project_id, callback.from_user.id)
+    await callback.answer("Статус задачи изменен")
+    if new_status == "NOTSTARTED":
+        await rq.change_task_status_to_notstarted(
+            task_id, project_id, callback.from_user.id, new_status
+        )
+    if new_status == "INPROGRESS":
+        await rq.change_task_status_to_inprogress(
+            task_id, project_id, callback.from_user.id, new_status
+        )
+    if new_status == "COMPLETED":
+        await rq.change_task_status_to_completed(
+            task_id, project_id, callback.from_user.id, new_status
+        )
+    task_emoji = await rq.get_task_emoji(task_id, project_id, callback.from_user.id)
+    if position == "general":
+        await callback.message.edit_text(
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачах',
+            reply_markup=await kb.manage_task(
+                project_id, task_id, "list_general_tasks", "general"
+            ),
+        )
+    else:
+        await callback.message.edit_text(
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте {project_name}',
+            reply_markup=await kb.manage_task(
+                project_id, task_id, f"list_tasks_{project_id}", "list"
+            ),
+        )
 
 
 # Handling messages related to PROJECTS
