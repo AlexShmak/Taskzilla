@@ -67,7 +67,7 @@ async def create_new_task(message: Message, state: FSMContext):
     data = await state.get_data()
     project_name = await rq.get_project_name(data["project_id"], message.from_user.id)
     project_id = data["project_id"]
-    await rq.add_task(data["project_id"], f"{message.text}", message.from_user.id)
+    await rq.add_task(project_id, f"{message.text}", message.from_user.id)
     task_id = await rq.get_task_id(message.text, project_id, message.from_user.id)
     task_emoji = await rq.get_task_emoji(task_id, project_id, message.from_user.id)
     await message.delete()
@@ -146,6 +146,89 @@ async def delete_task(callback: CallbackQuery):
         keyboard = await kb.project_tasks(project_id, callback.from_user.id)
         text = f'Список задач проекта "{project_name}"'
     await callback.message.edit_text(text=text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("rename_task_"))
+async def rename_task(callback: CallbackQuery, state: FSMContext):
+    """Rename task: asking for new task name"""
+    project_id = callback.data.split("_")[2]
+    task_id = callback.data.split("_")[3]
+    position = callback.data.split("_")[4]
+    await callback.answer("Переименование задачи")
+    await state.set_state(States.waiting_for_new_task_name)
+    await state.update_data(
+        {
+            "project_id": project_id,
+            "task_id": task_id,
+            "position": position,
+            "message_id": callback.message.message_id,
+        }
+    )
+    await callback.message.edit_text(
+        "Введите новое название задачи",
+        reply_markup=await kb.cancel_renaming_task(project_id, task_id, position),
+    )
+
+
+@router.callback_query(F.data.startswith("cancelRenamingTask_"))
+async def cancel_renaming_task(callback: CallbackQuery, state: FSMContext):
+    """Cancel renaming task"""
+    state.clear()
+    project_id = callback.data.split("_")[1]
+    task_id = callback.data.split("_")[2]
+    position = callback.data.split("_")[3]
+    task_name = await rq.get_task_name(task_id, project_id, callback.from_user.id)
+    task_emoji = await rq.get_task_emoji(task_id, project_id, callback.from_user.id)
+    await callback.answer("Отмена")
+    if position == "general":
+        await callback.message.edit_text(
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачах',
+            reply_markup=await kb.manage_task(
+                project_id, task_id, "list_general_tasks", "general"
+            ),
+        )
+    else:
+        project_name = await rq.get_project_name(project_id, callback.from_user.id)
+        await callback.message.edit_text(
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"',
+            reply_markup=await kb.manage_task(
+                project_id, task_id, "list_tasks_" + project_id, "list"
+            ),
+        )
+
+
+@router.message(States.waiting_for_new_task_name)
+async def rename_task_name(message: Message, state: FSMContext):
+    """Rename task: receiving new task name"""
+    data = await state.get_data()
+    position = data["position"]
+    await rq.rename_task(
+        data["task_id"], data["project_id"], message.from_user.id, message.text
+    )
+    if position == "general":
+        await state.clear()
+        await message.delete()
+        await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+        await message.answer(
+            f'Список общих задач\nЗадача "{message.text}" переименована',
+            reply_markup=await kb.general_tasks(
+                data["project_id"], message.from_user.id
+            ),
+        )
+
+    else:
+        project_name = await rq.get_project_name(
+            data["project_id"], message.from_user.id
+        )
+        await state.clear()
+        await message.delete()
+        await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+        await message.answer(
+            f'Список задач проекта "{project_name}"\nЗадача "{message.text}" переименована',
+            reply_markup=await kb.project_tasks(
+                data["project_id"], message.from_user.id
+            ),
+        )
 
 
 @router.callback_query(F.data == "list_general_tasks")
@@ -290,6 +373,35 @@ async def delete_project(callback: CallbackQuery):
     )
 
 
+@router.callback_query(F.data.startswith("rename_project_"))
+async def rename_project(callback: CallbackQuery, state: FSMContext):
+    """Rename project: asking for new project name"""
+    project_id = callback.data.split("_")[2]
+    await callback.answer("Переименование проекта")
+    await state.set_state(States.waiting_for_new_project_name)
+    await state.update_data(
+        project_id=project_id, message_id=callback.message.message_id
+    )
+    await callback.message.edit_text(
+        "Введите новое название проекта",
+        reply_markup=await kb.cancel_renaming_project(project_id, "project"),
+    )
+
+
+@router.message(States.waiting_for_new_project_name)
+async def rename_project_name(message: Message, state: FSMContext):
+    """Rename project: receiving new project name"""
+    data = await state.get_data()
+    await rq.rename_project(data["project_id"], message.from_user.id, message.text)
+    await state.clear()
+    await message.delete()
+    await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+    await message.answer(
+        f'Проект "{message.text}" переименован',
+        reply_markup=await kb.projects(message.from_user.id),
+    )
+
+
 @router.callback_query(F.data.startswith("cancel_"))
 async def cancel(callback: CallbackQuery):
     """Cancel"""
@@ -380,7 +492,3 @@ async def go_back(callback: CallbackQuery):
 async def filter_trash(message: Message):
     """Filter trash messages"""
     await message.delete()
-
-
-# TODO: fix HELP keyboard
-# TODO: change keyboard for tasks and projects (delete, rename, change state[for tasks])

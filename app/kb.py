@@ -281,3 +281,39 @@ async def cancel(user_id, project_id, position):
         ],
     )
     return keyboard
+
+
+async def cancel_renaming_task(project_id, task_id, position):
+    """
+    Cancel inline keyboard for canceling renaming task
+    and correct transition between inline keyboards
+    """
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✖️Отмена",
+                    callback_data=f"cancelRenamingTask_{project_id}_{task_id}_{position}",
+                ),
+            ],
+        ],
+    )
+    return keyboard
+
+
+async def cancel_renaming_project(project_id, position):
+    """
+    Cancel inline keyboard for canceling renaming project
+    and correct transition between inline keyboards
+    """
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✖️Отмена",
+                    callback_data=f"cancelRenamingProject_{project_id}_{position}",
+                ),
+            ],
+        ],
+    )
+    return keyboard
