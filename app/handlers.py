@@ -402,6 +402,18 @@ async def rename_project_name(message: Message, state: FSMContext):
     )
 
 
+@router.callback_query(F.data.startswith("cancelRenamingProject_"))
+async def cancel_renaming_project(callback: CallbackQuery):
+    """Cancel renaming project"""
+    project_id = callback.data.split("_")[1]
+    project_name = await rq.get_project_name(project_id, callback.from_user.id)
+    await callback.answer("Отмена")
+    await callback.message.edit_text(
+        f'Вы выбрали проект "{project_name}"',
+        reply_markup=await kb.manage_project(project_id),
+    )
+
+
 @router.callback_query(F.data.startswith("cancel_"))
 async def cancel(callback: CallbackQuery):
     """Cancel"""
