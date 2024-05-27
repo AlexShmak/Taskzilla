@@ -384,7 +384,7 @@ async def rename_project(callback: CallbackQuery, state: FSMContext):
     )
     await callback.message.edit_text(
         "Введите новое название проекта",
-        reply_markup=await kb.cancel_renaming_project(project_id, "project"),
+        reply_markup=await kb.cancel_renaming_project(project_id),
     )
 
 
