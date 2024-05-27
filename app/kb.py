@@ -301,7 +301,7 @@ async def cancel_renaming_task(project_id, task_id, position):
     return keyboard
 
 
-async def cancel_renaming_project(project_id, position):
+async def cancel_renaming_project(project_id):
     """
     Cancel inline keyboard for canceling renaming project
     and correct transition between inline keyboards
@@ -311,7 +311,7 @@ async def cancel_renaming_project(project_id, position):
             [
                 InlineKeyboardButton(
                     text="✖️Отмена",
-                    callback_data=f"cancelRenamingProject_{project_id}_{position}",
+                    callback_data=f"cancelRenamingProject_{project_id}",
                 ),
             ],
         ],
