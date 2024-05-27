@@ -34,7 +34,6 @@ class States(StatesGroup):
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     """Command /start"""
-    await message.delete()
     await rq.add_user(message.from_user.id)
     await rq.add_project(message.from_user.id, "General")
     await message.answer(
