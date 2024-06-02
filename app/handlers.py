@@ -509,6 +509,6 @@ async def go_back(callback: CallbackQuery):
         }
     )
 )
-async def filter_trash(message: Message):
+async def filter_trash_text(message: Message):
     """Filter trash messages"""
     await message.delete()
