@@ -6,10 +6,10 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-
 import app.text as t
 import app.kb as kb
 import app.database.requests as rq
+
 
 router = Router()
 
@@ -41,6 +41,46 @@ async def cmd_start(message: Message):
         reply_markup=await kb.starting_kb(message.from_user.id),
         parse_mode="Markdown",
     )
+
+
+@router.message(
+    F.content_type.in_(
+        {
+            "sticker",
+            "animation",
+            "video_note",
+            "voice",
+            "video",
+            "photo",
+            "document",
+            "game",
+            "story",
+            "autio",
+            "contact",
+            "dice",
+            "poll",
+            "location",
+            "venue",
+            "new_chat_members",
+            "left_chat_member",
+            "new_chat_title",
+            "new_chat_photo",
+            "delete_chat_photo",
+            "group_chat_created",
+            "supergroup_chat_created",
+            "channel_chat_created",
+            "migrate_to_chat_id",
+            "migrate_from_chat_id",
+            "pinned_message",
+            "invoice",
+            "successful_payment",
+            "passport_data",
+        }
+    )
+)
+async def filter_trash(message: Message):
+    """Filter trash messages"""
+    await message.delete()
 
 
 # Handling messages related to TASKS
@@ -169,10 +209,42 @@ async def rename_task(callback: CallbackQuery, state: FSMContext):
     )
 
 
+@router.message(States.waiting_for_new_task_name)
+async def rename_task_name(message: Message, state: FSMContext):
+    """Rename task: receiving new task name"""
+    data = await state.get_data()
+    position = data["position"]
+    await rq.rename_task(
+        data["task_id"], data["project_id"], message.from_user.id, message.text
+    )
+    if position == "general":
+        await message.delete()
+        await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+        await message.answer(
+            f'Список общих задач\nЗадача "{message.text}" переименована',
+            reply_markup=await kb.general_tasks(
+                data["project_id"], message.from_user.id
+            ),
+        )
+    else:
+        project_name = await rq.get_project_name(
+            data["project_id"], message.from_user.id
+        )
+        await message.delete()
+        await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+        await message.answer(
+            f'Список задач проекта "{project_name}"\nЗадача "{message.text}" переименована',
+            reply_markup=await kb.project_tasks(
+                data["project_id"], message.from_user.id
+            ),
+        )
+    await state.clear()
+
+
 @router.callback_query(F.data.startswith("cancelRenamingTask_"))
 async def cancel_renaming_task(callback: CallbackQuery, state: FSMContext):
     """Cancel renaming task"""
-    state.clear()
+    await state.clear()
     project_id = callback.data.split("_")[1]
     task_id = callback.data.split("_")[2]
     position = callback.data.split("_")[3]
@@ -192,40 +264,6 @@ async def cancel_renaming_task(callback: CallbackQuery, state: FSMContext):
             f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"',
             reply_markup=await kb.manage_task(
                 project_id, task_id, "list_tasks_" + project_id, "list"
-            ),
-        )
-
-
-@router.message(States.waiting_for_new_task_name)
-async def rename_task_name(message: Message, state: FSMContext):
-    """Rename task: receiving new task name"""
-    data = await state.get_data()
-    position = data["position"]
-    await rq.rename_task(
-        data["task_id"], data["project_id"], message.from_user.id, message.text
-    )
-    if position == "general":
-        await state.clear()
-        await message.delete()
-        await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
-        await message.answer(
-            f'Список общих задач\nЗадача "{message.text}" переименована',
-            reply_markup=await kb.general_tasks(
-                data["project_id"], message.from_user.id
-            ),
-        )
-
-    else:
-        project_name = await rq.get_project_name(
-            data["project_id"], message.from_user.id
-        )
-        await state.clear()
-        await message.delete()
-        await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
-        await message.answer(
-            f'Список задач проекта "{project_name}"\nЗадача "{message.text}" переименована',
-            reply_markup=await kb.project_tasks(
-                data["project_id"], message.from_user.id
             ),
         )
 
@@ -392,13 +430,13 @@ async def rename_project_name(message: Message, state: FSMContext):
     """Rename project: receiving new project name"""
     data = await state.get_data()
     await rq.rename_project(data["project_id"], message.from_user.id, message.text)
-    await state.clear()
     await message.delete()
     await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
     await message.answer(
         f'Проект "{message.text}" переименован',
         reply_markup=await kb.projects(message.from_user.id),
     )
+    await state.clear()
 
 
 @router.callback_query(F.data.startswith("cancelRenamingProject_"))
@@ -468,35 +506,6 @@ async def go_back(callback: CallbackQuery):
     F.content_type.in_(
         {
             "text",
-            "sticker",
-            "animation",
-            "video_note",
-            "voice",
-            "video",
-            "photo",
-            "document",
-            "game",
-            "story",
-            "autio",
-            "contact",
-            "dice",
-            "poll",
-            "location",
-            "venue",
-            "new_chat_members",
-            "left_chat_member",
-            "new_chat_title",
-            "new_chat_photo",
-            "delete_chat_photo",
-            "group_chat_created",
-            "supergroup_chat_created",
-            "channel_chat_created",
-            "migrate_to_chat_id",
-            "migrate_from_chat_id",
-            "pinned_message",
-            "invoice",
-            "successful_payment",
-            "passport_data",
         }
     )
 )
