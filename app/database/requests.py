@@ -306,3 +306,30 @@ async def rename_task(task_id, project_id, user_id, new_name):
             .values(name=new_name)
         )
         await session.commit()
+
+
+async def chgange_task_comment(task_id, project_id, user_id, comment):
+    """Asynchronously adds a comment to a task in the database."""
+    async with async_session() as session:
+        await session.execute(
+            update(Task)
+            .where(
+                Task.id == task_id,
+                Task.user_id == user_id,
+                Task.project_id == project_id,
+            )
+            .values(comment=comment)
+        )
+        await session.commit()
+
+
+async def get_task_comment(task_id, project_id, user_id):
+    async with async_session() as session:
+        task = await session.scalar(
+            select(Task).where(
+                Task.id == task_id,
+                Task.project_id == project_id,
+                Task.user_id == user_id,
+            )
+        )
+        return task.comment

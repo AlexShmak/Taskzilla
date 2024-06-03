@@ -132,7 +132,11 @@ async def manage_task(project_id, task_id, back_callback_data, position):
                 InlineKeyboardButton(
                     text="✏️Изменить задачу",
                     callback_data=f"change_task_{project_id}_{task_id}_{position}",
-                )
+                ),
+                InlineKeyboardButton(
+                    text="📖Изменить комментарий",
+                    callback_data=f"add_comment_{project_id}_{task_id}_{position}",
+                ),
             ],
             [InlineKeyboardButton(text="🔙Назад", callback_data=back_callback_data)],
         ],

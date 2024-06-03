@@ -27,8 +27,11 @@ class States(StatesGroup):
 
     waiting_for_task_name = State()
     waiting_for_project_name = State()
+
     waiting_for_new_task_name = State()
     waiting_for_new_project_name = State()
+
+    waiting_for_comment = State()
 
 
 @router.message(CommandStart())
@@ -138,14 +141,15 @@ async def task(callback: CallbackQuery):
     task_emoji = await rq.get_task_emoji(task_id, project_id, callback.from_user.id)
     project_name = await rq.get_project_name(project_id, callback.from_user.id)
     position = callback.data.split("_")[-1]
+    comment = await rq.get_task_comment(task_id, project_id, callback.from_user.id)
+    if not comment:
+        comment = "Комментарий пока не добавлен"
     if position == "general":
         back_callback_data = "list_general_tasks"
-        answer = f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачаx'
+        answer = f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачаx\n\nКомментарий: "{comment}"'
     elif position == "list":
         back_callback_data = f"list_tasks_{project_id}"
-        answer = (
-            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"'
-        )
+        answer = f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"\n\nКомментарий: "{comment}"'
     await callback.answer(answer)
     await callback.message.edit_text(
         answer,
@@ -153,6 +157,56 @@ async def task(callback: CallbackQuery):
             project_id, task_id, back_callback_data, position
         ),
     )
+
+
+@router.callback_query(F.data.startswith("add_comment_"))
+async def add_comment(callback: CallbackQuery, state: FSMContext):
+    """Add comment"""
+    project_id = callback.data.split("_")[2]
+    task_id = callback.data.split("_")[3]
+    position = callback.data.split("_")[4]
+    task_name = await rq.get_task_name(task_id, project_id, callback.from_user.id)
+    await callback.answer("Добавление комментария")
+    await state.set_state(States.waiting_for_comment)
+    await state.update_data(
+        project_id=project_id,
+        task_id=task_id,
+        message_id=callback.message.message_id,
+        position=position,
+    )
+    await callback.message.edit_text(
+        f'Введите комментарий для задачи "{task_name}"',
+        reply_markup=await kb.cancel(callback.from_user.id, project_id, position),
+    )
+
+
+@router.message(States.waiting_for_comment)
+async def add_comment_name(message: Message, state: FSMContext):
+    """Add comment: receiving comment name"""
+    data = await state.get_data()
+    task_id = data["task_id"]
+    project_id = data["project_id"]
+    position = data["position"]
+    project_name = await rq.get_project_name(project_id, message.from_user.id)
+    task_name = await rq.get_task_name(task_id, project_id, message.from_user.id)
+    task_emoji = await rq.get_task_emoji(task_id, project_id, message.from_user.id)
+    comment = message.text
+    await rq.chgange_task_comment(task_id, project_id, message.from_user.id, comment)
+    await message.delete()
+    await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
+    if position == "general":
+        back_callback_data = "list_general_tasks"
+        answer = f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачаx\n\nКомментарий: "{comment}"'
+    else:
+        back_callback_data = f"list_tasks_{project_id}"
+        answer = f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"\n\nКомментарий: "{comment}"'
+    await message.answer(
+        answer,
+        reply_markup=await kb.manage_task(
+            project_id, task_id, back_callback_data, position
+        ),
+    )
+    await state.clear()
 
 
 @router.callback_query(F.data.startswith("change_task_"))
@@ -221,7 +275,7 @@ async def rename_task_name(message: Message, state: FSMContext):
         await message.delete()
         await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
         await message.answer(
-            f'Список общих задач\nЗадача "{message.text}" переименована',
+            f'Список общих задач\n\nЗадача "{message.text}" переименована',
             reply_markup=await kb.general_tasks(
                 data["project_id"], message.from_user.id
             ),
@@ -233,7 +287,7 @@ async def rename_task_name(message: Message, state: FSMContext):
         await message.delete()
         await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
         await message.answer(
-            f'Список задач проекта "{project_name}"\nЗадача "{message.text}" переименована',
+            f'Список задач проекта "{project_name}"\n\nЗадача "{message.text}" переименована',
             reply_markup=await kb.project_tasks(
                 data["project_id"], message.from_user.id
             ),
@@ -250,10 +304,13 @@ async def cancel_renaming_task(callback: CallbackQuery, state: FSMContext):
     position = callback.data.split("_")[3]
     task_name = await rq.get_task_name(task_id, project_id, callback.from_user.id)
     task_emoji = await rq.get_task_emoji(task_id, project_id, callback.from_user.id)
+    comment = await rq.get_task_comment(task_id, project_id, callback.from_user.id)
+    if not comment:
+        comment = "Комментарий пока не добавлен"
     await callback.answer("Отмена")
     if position == "general":
         await callback.message.edit_text(
-            f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачах',
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачах\n\nКомментарий: "{comment}"',
             reply_markup=await kb.manage_task(
                 project_id, task_id, "list_general_tasks", "general"
             ),
@@ -261,7 +318,7 @@ async def cancel_renaming_task(callback: CallbackQuery, state: FSMContext):
     else:
         project_name = await rq.get_project_name(project_id, callback.from_user.id)
         await callback.message.edit_text(
-            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"',
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"\n\nКомментарий: "{comment}"',
             reply_markup=await kb.manage_task(
                 project_id, task_id, "list_tasks_" + project_id, "list"
             ),
@@ -301,6 +358,9 @@ async def status(callback: CallbackQuery):
     position = callback_data_list[4]
     task_name = await rq.get_task_name(task_id, project_id, callback.from_user.id)
     project_name = await rq.get_project_name(project_id, callback.from_user.id)
+    comment = await rq.get_task_comment(task_id, project_id, callback.from_user.id)
+    if not comment:
+        comment = "Комментарий пока не добавлен"
     await callback.answer("Статус задачи изменен")
     if new_status == "NOTSTARTED":
         await rq.change_task_status_to_notstarted(
@@ -317,14 +377,14 @@ async def status(callback: CallbackQuery):
     task_emoji = await rq.get_task_emoji(task_id, project_id, callback.from_user.id)
     if position == "general":
         await callback.message.edit_text(
-            f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачах',
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачах\n\nКомментарий: "{comment}"',
             reply_markup=await kb.manage_task(
                 project_id, task_id, "list_general_tasks", "general"
             ),
         )
     else:
         await callback.message.edit_text(
-            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте {project_name}',
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"\n\nКомментарий: "{comment}"',
             reply_markup=await kb.manage_task(
                 project_id, task_id, f"list_tasks_{project_id}", "list"
             ),
@@ -355,7 +415,7 @@ async def create_new_project(message: Message, state: FSMContext):
         await message.delete()
         await message.bot.delete_message(message.chat.id, message_id=data["message_id"])
         await message.answer(
-            "Cписок проектов\nОшибка: Нельзя использовать название 'General'",
+            "Cписок проектов\n\nОшибка: Нельзя использовать название 'General'",
             reply_markup=await kb.projects(message.from_user.id),
         )
     else:
@@ -477,7 +537,7 @@ async def cancel(callback: CallbackQuery):
         elif position == "list":
             project_name = await rq.get_project_name(project_callback, user_id)
             await callback.message.edit_text(
-                f"Список задач проекта '{project_name}'",
+                f'Список задач проекта "{project_name}"',
                 reply_markup=await kb.project_tasks(project_callback, user_id),
             )
         elif position == "project":
