@@ -97,7 +97,7 @@ class Task(Base):
     user_id: Mapped[BigInteger] = mapped_column(ForeignKey("users.tg_id"))
     status: Mapped[TaskStatus] = mapped_column(default=TaskStatus.NOTSTARTED)
     emoji: Mapped[str] = mapped_column(default="🟣")
-    # comment: Mapped[str] = mapped_column(String(256))
+    comment: Mapped[str] = mapped_column(default="")
 
     parent = relationship("Project", back_populates="children")
 
