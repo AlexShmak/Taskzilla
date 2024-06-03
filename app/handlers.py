@@ -176,8 +176,38 @@ async def add_comment(callback: CallbackQuery, state: FSMContext):
     )
     await callback.message.edit_text(
         f'Введите комментарий для задачи "{task_name}"',
-        reply_markup=await kb.cancel(callback.from_user.id, project_id, position),
+        reply_markup=await kb.cancel_changing_comment(project_id, task_id, position),
     )
+
+
+@router.callback_query(F.data.startswith("cancelChangingComment_"))
+async def cancel_changing_comment(callback: CallbackQuery, state: FSMContext):
+    """Cancel changing comment"""
+    await state.clear()
+    project_id = callback.data.split("_")[1]
+    task_id = callback.data.split("_")[2]
+    position = callback.data.split("_")[3]
+    task_name = await rq.get_task_name(task_id, project_id, callback.from_user.id)
+    task_emoji = await rq.get_task_emoji(task_id, project_id, callback.from_user.id)
+    comment = await rq.get_task_comment(task_id, project_id, callback.from_user.id)
+    if not comment:
+        comment = "Комментарий пока не добавлен"
+    await callback.answer("Отмена")
+    if position == "general":
+        await callback.message.edit_text(
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в общих задачах\n\nКомментарий: "{comment}"',
+            reply_markup=await kb.manage_task(
+                project_id, task_id, "list_general_tasks", "general"
+            ),
+        )
+    else:
+        project_name = await rq.get_project_name(project_id, callback.from_user.id)
+        await callback.message.edit_text(
+            f'Вы выбрали задачу "{task_emoji} {task_name}" в проекте "{project_name}"\n\nКомментарий: "{comment}"',
+            reply_markup=await kb.manage_task(
+                project_id, task_id, "list_tasks_" + project_id, "list"
+            ),
+        )
 
 
 @router.message(States.waiting_for_comment)
